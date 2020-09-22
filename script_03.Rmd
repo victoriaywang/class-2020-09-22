@@ -40,7 +40,12 @@ sep_old <-
          title = course_title,
          name = course_name,
          department = course_department) %>% 
-  filter(u_grad > 10)
+  filter(u_grad > 10) %>%
+  group_by(id, title, name, department) %>%
+  summarize(total_enroll = sum(u_grad), .groups = "drop") %>%
+  distinct(name, .keep_all = TRUE)
+View(sep_old)
+
 
 # But this is not correct! Look for Gov 50: Data. What do you see? What can you
 # do to clean it up?
@@ -51,6 +56,22 @@ sep_old <-
 
 **Prompt:** Read in and clean the new data, creating an object called `sep_new`. 
 
+```{r}
+sep_new <- read_excel("new_data/class_enrollment_summary_by_term_9-22-2020.xlsx", skip = 3) %>% 
+  clean_names() %>% 
+  filter(! is.na(course_title)) %>% 
+  select(-grad, -non_degree, -x_reg, -vus, -employee, 
+         -withdraw, -total, -instructor_full_name, -course_section_code) %>%
+  rename(id = course_id,
+         title = course_title,
+         name = course_name,
+         department = course_department) %>% 
+  filter(u_grad > 10) %>%
+  group_by(id, title, name, department) %>%
+  summarize(total_enroll = sum(u_grad), .groups = "drop") %>%
+  distinct(name, .keep_all = TRUE)
+
+```
 
 
 ### Scene 2
@@ -59,18 +80,36 @@ sep_old <-
 
 
 Before we start on the model, Wisdom suggests we should:
-
+- account for changes in total undergraduate enrollment in affecting course size
 
 
 
 After we have a model, Temperance suggests we should:
-
-
+- unsure if data is up to date
+- acknowledge unprecedented situation
+- can't compare to previous years
 
 ### Scene 3
 
 **Prompt:** Which classes had the biggest increases and decreases in undergraduate enrollments between September 1 and today? Make a graphic that shows the 5 biggest increases and decreases. Make it look nice.
 
+```{r}
+enrollment_change <- left_join(sep_old, sep_new, by = "id", suffix = c("_old", "_new")) %>%
+  mutate(change_in_enrollment = total_enroll_new - total_enroll_old) %>%
+  arrange(change_in_enrollment) %>%
+  drop_na() #%>%
+  #slice(1:5, 380:384)
+
+View(enrollment_change)
+
+ggplot(enrollment_change, aes(x = fct_reorder(title_new, change_in_enrollment), y = change_in_enrollment)) + 
+    geom_col() + 
+    coord_flip() + 
+    labs(title = "Change in Enrollment", 
+         x = "Change in Enrollment",
+         y = "Course") 
+
+```
 
 
 
